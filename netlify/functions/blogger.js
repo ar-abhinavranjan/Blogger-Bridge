@@ -29,7 +29,7 @@ exports.handler = async (event) => {
     if (!googleClientId) {
       return response(503, { ok: false, error: "Google sign-in is not configured." }, appOrigin);
     }
-    return response(200, { ok: true, googleClientId }, appOrigin);
+    return response(200, { ok: true, googleClientId, functionVersion: "3dd8fd0", allowlistConfigured: true }, appOrigin);
   }
 
   if (event.httpMethod === "OPTIONS") {
