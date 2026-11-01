@@ -1,4 +1,4 @@
-const ALLOWED_EMAIL = "proabhinavranjan@gmail.com";
+const ALLOWED_EMAIL = "proabhinavranparoo@gmail.com";
 const READ_ACTIONS = new Set(["getBlog", "listPosts", "listPages"]);
 
 function response(statusCode, body, origin) {
