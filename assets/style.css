@@ -9,3 +9,28 @@
 .data-item a:hover{text-decoration:underline}
 #google-signin{min-height:36px;display:flex;align-items:center}
 @media(max-width:620px){#google-signin{max-width:160px;overflow:hidden}}
+
+/* Keep the Google Identity button's outer iframe/container transparent. */
+#google-signin {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 40px;
+  height: 40px;
+  line-height: 0;
+  overflow: hidden;
+  border-radius: 24px;
+}
+#google-signin iframe {
+  display: block;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+#google-signin > div {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
