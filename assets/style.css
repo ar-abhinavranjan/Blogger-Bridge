@@ -7,34 +7,34 @@
 .data-item p{font-size:11px;margin:0 0 8px}
 .data-item a{color:var(--pink);font-size:11px;text-decoration:none}
 .data-item a:hover{text-decoration:underline}
-#google-signin{min-height:36px;display:flex;align-items:center}
-@media(max-width:620px){#google-signin{max-width:160px;overflow:hidden}}
-
-/* Keep the Google Identity button's outer iframe/container transparent. */
+/* Google Identity Services button: transparent wrapper, exact button-sized frame. */
 #google-signin {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 200px;
+  min-width: 200px;
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
   background: transparent !important;
   border: 0 !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  min-height: 40px;
-  height: 40px;
-  line-height: 0;
-  overflow: hidden;
   border-radius: 24px;
+  box-shadow: none !important;
+  line-height: 0;
 }
 #google-signin iframe {
   display: block;
-  background: transparent !important;
+  width: 200px !important;
+  max-width: 200px;
+  height: 40px !important;
   border: 0 !important;
-  box-shadow: none !important;
-}
-#google-signin > div {
+  border-radius: 24px;
   background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
 }
-
-/* Dark surround for the Google Identity iframe; preserve the real Google button. */
-#google-signin{background:var(--bg)!important;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:24px}
-#google-signin iframe{background:var(--bg)!important;max-width:100%;border-radius:24px}
+@media(max-width:620px) {
+  .top-right { gap: 8px; }
+  #google-signin { width: 200px; min-width: 0; max-width: 200px; }
+}
