@@ -34,3 +34,7 @@
   border: 0 !important;
   box-shadow: none !important;
 }
+
+/* Dark surround for the Google Identity iframe; preserve the real Google button. */
+#google-signin{background:var(--bg)!important;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:24px}
+#google-signin iframe{background:var(--bg)!important;max-width:100%;border-radius:24px}
