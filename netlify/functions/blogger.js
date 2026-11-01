@@ -29,7 +29,7 @@ exports.handler = async (event) => {
     if (!googleClientId) {
       return response(503, { ok: false, error: "Google sign-in is not configured." }, appOrigin);
     }
-    return response(200, { ok: true, googleClientId, functionVersion: "3dd8fd0", allowlistConfigured: true }, appOrigin);
+    return response(200, { ok: true, googleClientId, functionVersion: "bridge-key-diagnostic", allowlistConfigured: true }, appOrigin);
   }
 
   if (event.httpMethod === "OPTIONS") {
@@ -131,6 +131,13 @@ exports.handler = async (event) => {
     let data;
     try { data = JSON.parse(raw); }
     catch { return response(502, { ok: false, error: "Apps Script returned an unreadable response." }, appOrigin); }
+
+    if (data && data.ok === false && String(data.error || "") === "Unauthorized.") {
+      return response(502, {
+        ok: false,
+        error: "Apps Script rejected BRIDGE_KEY. Netlify's BRIDGE_KEY does not exactly match Apps Script → Project Settings → Script Properties → BRIDGE_KEY. Set the same secret in both places, save, and redeploy. Do not paste the secret into chat."
+      }, appOrigin);
+    }
 
     return response(upstream.ok && data.ok ? 200 : 502, data, appOrigin);
   } catch (error) {
