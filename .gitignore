@@ -1,0 +1,7 @@
+# Local secrets and Netlify build state
+.env
+.env.*
+!.env.example
+.netlify/
+node_modules/
+.DS_Store
