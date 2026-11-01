@@ -20,7 +20,7 @@ exports.handler = async (event) => {
   const appOrigin = process.env.APP_ORIGIN;
   const origin = event.headers.origin || event.headers.Origin || "";
 
-  if (!appOrigin || origin !== appOrigin) {
+  if (!appOrigin || (origin && origin !== appOrigin) || (!origin && event.httpMethod !== "GET")) {
     return response(403, { ok: false, error: "Origin not allowed." });
   }
 
