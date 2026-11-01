@@ -38,13 +38,13 @@ async function loadDashboard(){
   $('metric-posts').textContent=String(posts.totalItems??postData.length);
   $('metric-pages').textContent=String(pagesResult.totalItems??pageData.length);
   renderPosts(postData);renderPages(pageData);
-  status('backend-state','● Connected','good');status('google-state','● Authorized','good');
+  status('backend-state','● Connected','good');status('google-state','● Authorized','good');status('sidebar-connection','Blogger connected');status('sidebar-detail','Read-only API active');
   status('auth-status','CONNECTED','mode');status('system-state','LIVE','pill');
   status('terminal-state','CONNECTED','terminal-state');
   setNotice('Blogger connected','Live blog information, posts and pages loaded successfully. This integration is read-only.');
   line('Authenticated as the authorized Google account. Blogger data loaded.','success');
  }catch(err){
-  status('backend-state','● Error','error');setNotice('Connection failed',err.message);
+  status('backend-state','● Error','error');status('sidebar-connection','Connection error');status('sidebar-detail','Check Netlify function logs');setNotice('Connection failed',err.message);
   line('Connection error: '+err.message,'error');
  }
 }
