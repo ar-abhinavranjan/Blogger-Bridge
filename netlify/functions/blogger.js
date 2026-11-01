@@ -87,11 +87,10 @@ exports.handler = async (event) => {
       }, appOrigin);
     }
 
-    // Normalize Unicode and remove invisible formatting characters before comparison.
+    // Normalize only invisible/control characters. Preserve email punctuation such as @ and .
     const normalizeEmail = (value) => String(value || "")
       .normalize("NFKC")
-      .replace(/[\\u200B-\\u200D\\u2060\\uFEFF\\u00AD\\u202A-\\u202E\\u2066-\\u2069]/g, "")
-      .replace(/\\s+/g, "")
+      .replace(/[\u0000-\u0020\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/g, "")
       .toLowerCase();
 
     const signedInEmail = normalizeEmail(identity.email);
@@ -100,9 +99,7 @@ exports.handler = async (event) => {
     if (signedInEmail !== allowedEmail) {
       return response(403, {
         ok: false,
-        error: "Google returned account: " + (signedInEmail || "(email missing)") +
-          ". Blogger Bridge currently allows: " + allowedEmail +
-          ". Account comparison failed after Unicode normalization."
+        error: "Signed-in account does not match the configured Blogger Bridge account. Check the allowlist and sign-in account."
       }, appOrigin);
     }
 
