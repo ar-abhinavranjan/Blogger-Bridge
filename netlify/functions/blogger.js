@@ -24,13 +24,21 @@ exports.handler = async (event) => {
     return response(403, { ok: false, error: "Origin not allowed." });
   }
 
+  if (event.httpMethod === "GET") {
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+    if (!googleClientId) {
+      return response(503, { ok: false, error: "Google sign-in is not configured." }, appOrigin);
+    }
+    return response(200, { ok: true, googleClientId }, appOrigin);
+  }
+
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 204,
       headers: {
         "Access-Control-Allow-Origin": appOrigin,
         "Access-Control-Allow-Headers": "Authorization, Content-Type",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Vary": "Origin"
       },
       body: ""
