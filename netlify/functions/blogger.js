@@ -87,10 +87,15 @@ exports.handler = async (event) => {
       }, appOrigin);
     }
 
-    if (String(identity.email || "").trim().toLowerCase() !== ALLOWED_EMAIL.toLowerCase()) {
+    const signedInEmail = String(identity.email || "").trim().toLowerCase();
+    const allowedEmail = String(ALLOWED_EMAIL || "").trim().toLowerCase();
+
+    if (signedInEmail !== allowedEmail) {
       return response(403, {
         ok: false,
-        error: "Signed-in Google account does not match the account allowed by this Blogger Bridge function."
+        error: "Google returned account: " + (signedInEmail || "(email missing)") +
+          ". Blogger Bridge currently allows: " + allowedEmail +
+          ". Sign out of other Google accounts and choose the allowed account."
       }, appOrigin);
     }
 
