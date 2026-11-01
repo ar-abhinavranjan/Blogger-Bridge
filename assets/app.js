@@ -44,7 +44,7 @@ async function loadDashboard(){
   setNotice('Blogger connected','Live blog information, posts and pages loaded successfully. This integration is read-only.');
   line('Authenticated as the authorized Google account. Blogger data loaded.','success');
  }catch(err){
-  status('backend-state','● Error','error');status('sidebar-connection','Connection error');status('sidebar-detail','Check Netlify function logs');setNotice('Connection failed',err.message);
+  status('backend-state','● Error','error');status('google-state','● Authorization failed','error');status('auth-status','AUTH ERROR','mode');status('terminal-state','AUTH ERROR','terminal-state');status('sidebar-connection','Connection error');status('sidebar-detail','Function '+(window.BLOGGER_BRIDGE_FUNCTION_VERSION||'unknown'));setNotice('Connection failed',err.message);
   line('Connection error: '+err.message,'error');
  }
 }
@@ -53,6 +53,8 @@ async function initGoogle(){
   const r=await fetch('/.netlify/functions/blogger');
   const cfg=await r.json();
   if(!r.ok||!cfg.googleClientId)throw new Error(cfg.error||'Google sign-in configuration unavailable.');
+  window.BLOGGER_BRIDGE_FUNCTION_VERSION=cfg.functionVersion||'unknown';
+  status('sidebar-detail','Function '+window.BLOGGER_BRIDGE_FUNCTION_VERSION);
   const waitForGIS=()=>new Promise((resolve,reject)=>{let tries=0;const timer=setInterval(()=>{if(window.google?.accounts?.id){clearInterval(timer);resolve()}else if(++tries>60){clearInterval(timer);reject(new Error('Google sign-in library did not load.'))}},150)});
   await waitForGIS();
   google.accounts.id.initialize({client_id:cfg.googleClientId,callback:async response=>{
@@ -61,7 +63,7 @@ async function initGoogle(){
     line('Google identity received. Verifying access…','dim');
     await loadDashboard();
   }});
-  google.accounts.id.renderButton($('google-signin'),{type:'standard',theme:'filled_black',size:'medium',text:'signin_with',shape:'pill'});
+  google.accounts.id.renderButton($('google-signin'),{type:'standard',theme:'filled_black',size:'medium',text:'signin_with',shape:'pill',logo_alignment:'left',width:190});
   googleReady=true;
  }catch(err){setNotice('Sign-in unavailable',err.message);line('Sign-in setup error: '+err.message,'error')}
 }
