@@ -72,12 +72,26 @@ exports.handler = async (event) => {
     }
 
     const identity = await tokenInfoResponse.json();
-    if (
-      identity.aud !== googleClientId ||
-      identity.email !== ALLOWED_EMAIL ||
-      identity.email_verified !== "true"
-    ) {
-      return response(403, { ok: false, error: "This Google account is not authorized." }, appOrigin);
+
+    if (String(identity.aud || "") !== String(googleClientId || "")) {
+      return response(401, {
+        ok: false,
+        error: "OAuth client mismatch: Netlify GOOGLE_CLIENT_ID does not match the sign-in token audience."
+      }, appOrigin);
+    }
+
+    if (identity.email_verified !== "true" && identity.email_verified !== true) {
+      return response(403, {
+        ok: false,
+        error: "Google email is not verified. Verify the Google account and sign in again."
+      }, appOrigin);
+    }
+
+    if (String(identity.email || "").trim().toLowerCase() !== ALLOWED_EMAIL.toLowerCase()) {
+      return response(403, {
+        ok: false,
+        error: "Signed-in Google account does not match the account allowed by this Blogger Bridge function."
+      }, appOrigin);
     }
 
     if (!event.body || event.body.length > 20000) {
