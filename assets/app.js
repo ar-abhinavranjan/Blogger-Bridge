@@ -63,7 +63,7 @@ async function initGoogle(){
     line('Google identity received. Verifying access…','dim');
     await loadDashboard();
   }});
-  google.accounts.id.renderButton($('google-signin'),{type:'standard',theme:'filled_black',size:'medium',text:'signin_with',shape:'pill',logo_alignment:'left',width:190});
+  google.accounts.id.renderButton($('google-signin'),{type:'standard',theme:'outline_dark',size:'medium',text:'signin_with',shape:'pill',logo_alignment:'left',width:200});
   googleReady=true;
  }catch(err){setNotice('Sign-in unavailable',err.message);line('Sign-in setup error: '+err.message,'error')}
 }
