@@ -3,84 +3,29 @@ const $=id=>document.getElementById(id);
 const pages=['overview','terminal','posts','pages','comments','analytics'];
 const names={overview:'Overview',terminal:'Command terminal',posts:'Posts',pages:'Pages',comments:'Comments',analytics:'Analytics'};
 const output=$('output'),input=$('command-input');
-let idToken=null,blogData=null,postData=[],pageData=[],googleReady=false;
-function navigate(id){if(!pages.includes(id))return;document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('.nav').forEach(b=>b.classList.toggle('active',b.dataset.view===id));$('view-name').textContent=names[id];if(id==='terminal')setTimeout(()=>input.focus(),0)}
+let session=null,blogData=null,postData=[],pageData=[],googleClientId=null,googleReady=false,signingIn=false;
+function navigate(id){if(!session||!pages.includes(id))return;document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('.nav').forEach(b=>b.classList.toggle('active',b.dataset.view===id));$('view-name').textContent=names[id];if(id==='terminal')setTimeout(()=>input.focus(),0)}
 document.querySelectorAll('.nav').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.view)));
 document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.goto)));
 function line(text,cls=''){const p=document.createElement('p');p.textContent=text;if(cls)p.className=cls;output.appendChild(p);output.scrollTop=output.scrollHeight}
 function status(id,text,cls){const el=$(id);if(el){el.textContent=text;el.className=cls||''}}
-function setNotice(title,message){const n=$('connection-notice');if(!n)return;n.querySelector('b').textContent=title;n.querySelector('p').textContent=message}
-async function request(action,extra={}){
- if(!idToken)throw new Error('Sign in with the authorized Google account first.');
- const res=await fetch('/.netlify/functions/blogger',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+idToken},body:JSON.stringify({action,...extra})});
- let data;try{data=await res.json()}catch{throw new Error('The server returned an unreadable response.')}
- if(!res.ok||!data.ok)throw new Error(data.error||'Blogger request failed.');
- return data.result;
-}
+function setLoginMessage(message,error=false){const el=$('login-message');if(el){el.textContent=message;el.classList.toggle('error',error)}}
+function showGate(message){session=null;$('login-gate').hidden=false;$('app-shell').hidden=true;setLoginMessage(message||'Sign in is required before opening the dashboard.');}
+function showApp(user){session=user||{};$('login-gate').hidden=true;$('app-shell').hidden=false;$('signed-in-user').textContent=user?.email||'Authorized Google account';}
+async function authRequest(action,payload={}){const response=await fetch('/.netlify/functions/auth',{method:action==='status'?'GET':'POST',credentials:'same-origin',headers:action==='status'?{}:{'Content-Type':'application/json'},body:action==='status'?undefined:JSON.stringify({action,...payload})});let data;try{data=await response.json()}catch{throw new Error('Authentication server returned an unreadable response.')}if(!response.ok||!data.ok)throw new Error(data.error||'Authentication request failed.');return data}
+async function request(action,extra={}){if(!session)throw new Error('Sign in to continue.');const res=await fetch('/.netlify/functions/blogger',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...extra})});let data;try{data=await res.json()}catch{throw new Error('The server returned an unreadable response.')}if(res.status===401){await expireSession();throw new Error('Your session expired. Please sign in again.')}if(!res.ok||!data.ok)throw new Error(data.error||'Blogger request failed.');return data.result}
 function addCell(parent,tag,text,cls){const el=document.createElement(tag);el.textContent=text??'';if(cls)el.className=cls;parent.appendChild(el);return el}
-function renderPosts(items){
- const root=$('posts-data');root.replaceChildren();
- if(!items.length){addCell(root,'p','No posts were returned by Blogger.','muted');return}
- items.forEach(p=>{const card=document.createElement('article');card.className='data-item';addCell(card,'h3',p.title||'(Untitled)');addCell(card,'p',(p.status||'UNKNOWN')+' · '+(p.updated||p.published||'Date unavailable'),'muted');if(p.url){const a=addCell(card,'a','Open published post');a.href=p.url;a.target='_blank';a.rel='noopener noreferrer'}root.appendChild(card)});
-}
-function renderPages(items){
- const root=$('pages-data');root.replaceChildren();
- if(!items.length){addCell(root,'p','No pages were returned by Blogger.','muted');return}
- items.forEach(p=>{const card=document.createElement('article');card.className='data-item';addCell(card,'h3',p.title||'(Untitled)');addCell(card,'p',(p.status||'UNKNOWN')+' · '+(p.updated||p.published||'Date unavailable'),'muted');if(p.url){const a=addCell(card,'a','Open published page');a.href=p.url;a.target='_blank';a.rel='noopener noreferrer'}root.appendChild(card)});
-}
-async function loadDashboard(){
- status('backend-state','● Connecting','warn');
- try{
-  const [blog,posts,pagesResult]=await Promise.all([request('getBlog'),request('listPosts',{maxResults:50}),request('listPages',{maxResults:50})]);
-  blogData=blog;postData=posts.items||[];pageData=pagesResult.items||[];
-  $('metric-blog').textContent=blog.name||'Connected';
-  $('metric-blog-url').textContent=blog.url||'Blogger blog';
-  $('metric-posts').textContent=String(posts.totalItems??postData.length);
-  $('metric-pages').textContent=String(pagesResult.totalItems??pageData.length);
-  renderPosts(postData);renderPages(pageData);
-  status('backend-state','● Connected','good');status('google-state','● Authorized','good');status('sidebar-connection','Blogger connected');status('sidebar-detail','Read-only API active');
-  status('auth-status','CONNECTED','mode');status('system-state','LIVE','pill');
-  status('terminal-state','CONNECTED','terminal-state');
-  setNotice('Blogger connected','Live blog information, posts and pages loaded successfully. This integration is read-only.');
-  line('Authenticated as the authorized Google account. Blogger data loaded.','success');
- }catch(err){
-  status('backend-state','● Error','error');status('google-state','● Authorization failed','error');status('auth-status','AUTH ERROR','mode');status('terminal-state','AUTH ERROR','terminal-state');status('sidebar-connection','Connection error');status('sidebar-detail','Function '+(window.BLOGGER_BRIDGE_FUNCTION_VERSION||'unknown'));setNotice('Connection failed',err.message);
-  line('Connection error: '+err.message,'error');
- }
-}
-async function initGoogle(){
- try{
-  const r=await fetch('/.netlify/functions/blogger');
-  const cfg=await r.json();
-  if(!r.ok||!cfg.googleClientId)throw new Error(cfg.error||'Google sign-in configuration unavailable.');
-  window.BLOGGER_BRIDGE_FUNCTION_VERSION=cfg.functionVersion||'unknown';
-  status('sidebar-detail','Function '+window.BLOGGER_BRIDGE_FUNCTION_VERSION);
-  const waitForGIS=()=>new Promise((resolve,reject)=>{let tries=0;const timer=setInterval(()=>{if(window.google?.accounts?.id){clearInterval(timer);resolve()}else if(++tries>60){clearInterval(timer);reject(new Error('Google sign-in library did not load.'))}},150)});
-  await waitForGIS();
-  google.accounts.id.initialize({client_id:cfg.googleClientId,callback:async response=>{
-    idToken=response.credential;
-    status('auth-status','VERIFYING…','mode');status('google-state','● Verifying','warn');
-    line('Google identity received. Verifying access…','dim');
-    await loadDashboard();
-  }});
-  google.accounts.id.renderButton($('google-signin'),{type:'standard',theme:'filled_blue',size:'medium',text:'signin_with',shape:'pill',logo_alignment:'left',width:200});
-  googleReady=true;
- }catch(err){setNotice('Sign-in unavailable',err.message);line('Sign-in setup error: '+err.message,'error')}
-}
-function run(raw){
- const cmd=raw.trim();if(!cmd)return;line('ar@blogger:~$ '+cmd,'dim');
- const lower=cmd.toLowerCase();
- if(lower==='help'||lower==='--help'){line('AVAILABLE COMMANDS','success');[['help','Show this command list'],['clear','Clear terminal output'],['connect status','Show connection status'],['blog info','Show blog metadata'],['posts list','List Blogger posts'],['pages list','List Blogger pages'],['system status','Show application status']].forEach(([a,b])=>line('  '+a.padEnd(22)+' '+b));line('Write operations, comments and analytics are not enabled in this release.')}
- else if(lower==='clear'){output.replaceChildren()}
- else if(lower==='connect status'||lower==='system status'){line('Frontend: ONLINE','success');line('Google authorization: '+(idToken?'SIGNED IN':'NOT SIGNED IN'));line('Blogger backend: '+(blogData?'CONNECTED':'NOT CONNECTED'));line('Write operations: DISABLED')}
- else if(lower==='blog info'){if(!blogData)line('Sign in first to load blog information.','error');else{line('Blog: '+blogData.name,'success');line('URL: '+blogData.url);line('ID: '+blogData.id)}}
- else if(lower==='posts list'){if(!postData.length)line(idToken?'No posts found.':'Sign in first to load posts.','error');else postData.forEach(p=>line((p.status||'')+' · '+(p.title||'(Untitled)')))}
- else if(lower==='pages list'){if(!pageData.length)line(idToken?'No pages found.':'Sign in first to load pages.','error');else pageData.forEach(p=>line((p.status||'')+' · '+(p.title||'(Untitled)')))}
- else line('Unknown or disabled command. Type "help".','error');
-}
+function renderItems(rootId,items,kind){const root=$(rootId);root.replaceChildren();if(!items.length){addCell(root,'p','No '+kind+' were returned by Blogger.','muted');return}items.forEach(p=>{const card=document.createElement('article');card.className='data-item';addCell(card,'h3',p.title||'(Untitled)');addCell(card,'p',(p.status||'UNKNOWN')+' · '+(p.updated||p.published||'Date unavailable'),'muted');if(p.url){const a=addCell(card,'a','Open published '+(kind==='posts'?'post':'page'));a.href=p.url;a.target='_blank';a.rel='noopener noreferrer'}root.appendChild(card)})}
+async function loadDashboard(){status('backend-state','● Connecting','warn');try{const [blog,posts,pagesResult]=await Promise.all([request('getBlog'),request('listPosts',{maxResults:50}),request('listPages',{maxResults:50})]);blogData=blog;postData=posts.items||[];pageData=pagesResult.items||[];$('metric-blog').textContent=blog.name||'Connected';$('metric-blog-url').textContent=blog.url||'Blogger blog';$('metric-posts').textContent=String(posts.totalItems??postData.length);$('metric-pages').textContent=String(pagesResult.totalItems??pageData.length);renderItems('posts-data',postData,'posts');renderItems('pages-data',pageData,'pages');status('backend-state','● Connected','good');status('google-state','● Authorized','good');status('sidebar-connection','Blogger connected');status('sidebar-detail','Secure session active');status('auth-status','CONNECTED','mode');status('system-state','LIVE','pill');status('terminal-state','CONNECTED','terminal-state');const n=$('connection-notice');n.querySelector('b').textContent='Blogger connected';n.querySelector('p').textContent='Live blog information, posts and pages loaded successfully. This integration is read-only.';line('Authenticated session verified. Blogger data loaded.','success')}catch(err){status('backend-state','● Error','error');line('Blogger connection error: '+err.message,'error');if(!session)showGate('Your session expired. Sign in again to continue.')}}
+async function expireSession(){session=null;showGate('Your session expired. Sign in again to continue.');status('auth-status','SIGN IN REQUIRED','mode')}
+async function handleGoogleCredential(response){if(signingIn)return;signingIn=true;setLoginMessage('Verifying your Google account…');try{const result=await authRequest('login',{credential:response.credential});showApp(result.user);line('Secure session created for '+(result.user?.email||'authorized account')+'.','success');await loadDashboard()}catch(err){showGate(err.message);setLoginMessage(err.message,true)}finally{signingIn=false}}
+async function logout(){try{await authRequest('logout')}catch(err){line('Sign-out request failed: '+err.message,'error')}session=null;blogData=null;postData=[];pageData=[];showGate('You have been signed out. Sign in to access Blogger Bridge.');status('auth-status','SIGNED OUT','mode');status('sidebar-connection','Sign-in required');status('sidebar-detail','Google authorization required');$('metric-blog').textContent='Not connected';$('metric-blog-url').textContent='Awaiting sign-in';$('metric-posts').textContent='—';$('metric-pages').textContent='—'}
+$('sign-out').addEventListener('click',logout);
+function waitForGIS(){return new Promise((resolve,reject)=>{let tries=0;const timer=setInterval(()=>{if(window.google?.accounts?.id){clearInterval(timer);resolve()}else if(++tries>80){clearInterval(timer);reject(new Error('Google sign-in library did not load. Check your network or content blockers.'))}},150)})}
+async function initialize(){try{const config=await authRequest('status');googleClientId=config.googleClientId;if(config.authenticated){showApp(config.user);await loadDashboard()}else{showGate('Sign in is required before opening the dashboard.')}await waitForGIS();google.accounts.id.initialize({client_id:googleClientId,callback:handleGoogleCredential,auto_select:false,cancel_on_tap_outside:true});google.accounts.id.renderButton($('google-signin'),{type:'standard',theme:'filled_blue',size:'large',text:'signin_with',shape:'pill',logo_alignment:'left',width:280});googleReady=true}catch(err){showGate(err.message);setLoginMessage(err.message,true)}}
+function run(raw){if(!session){showGate('Sign in before using the command terminal.');return}const cmd=raw.trim();if(!cmd)return;line('ar@blogger:~$ '+cmd,'dim');const lower=cmd.toLowerCase();if(lower==='help'||lower==='--help'){line('AVAILABLE COMMANDS','success');[['help','Show this command list'],['clear','Clear terminal output'],['connect status','Show connection status'],['blog info','Show blog metadata'],['posts list','List Blogger posts'],['pages list','List Blogger pages'],['system status','Show application status']].forEach(([a,b])=>line('  '+a.padEnd(22)+' '+b));line('Write operations, comments and analytics are not enabled in this release.')}else if(lower==='clear'){output.replaceChildren()}else if(lower==='connect status'||lower==='system status'){line('Frontend: ONLINE','success');line('Google authorization: SIGNED IN');line('Blogger backend: '+(blogData?'CONNECTED':'NOT CONNECTED'));line('Write operations: DISABLED')}else if(lower==='blog info'){if(!blogData)line('Blogger is not connected.','error');else{line('Blog: '+blogData.name,'success');line('URL: '+blogData.url);line('ID: '+blogData.id)}}else if(lower==='posts list'){if(!postData.length)line('No posts loaded.','error');else postData.forEach(p=>line((p.status||'')+' · '+(p.title||'(Untitled)')))}else if(lower==='pages list'){if(!pageData.length)line('No pages loaded.','error');else pageData.forEach(p=>line((p.status||'')+' · '+(p.title||'(Untitled)')))}else line('Unknown or disabled command. Type "help".','error')}
 $('command-form').addEventListener('submit',e=>{e.preventDefault();run(input.value);input.value='';input.focus()});
 $('clear-terminal').addEventListener('click',()=>{output.replaceChildren();line('Console cleared. Type "help" to continue.','dim')});
 document.querySelectorAll('[data-command]').forEach(b=>b.addEventListener('click',()=>{navigate('terminal');run(b.dataset.command)}));
-status('backend-state','● Waiting','warn');status('google-state','● Not signed in','warn');
-initGoogle();
+status('backend-state','● Waiting','warn');status('google-state','● Not signed in','warn');initialize();
 })();
