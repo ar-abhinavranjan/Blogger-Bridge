@@ -1,7 +1,46 @@
 'use strict';
 
 const { getSession } = require('./lib/session');
-const READ_ACTIONS = new Set(['getBlog', 'listPosts', 'listPages']);
+
+// The Apps Script bridge implements these actions. Keep this server-side
+// allowlist authoritative; the browser never receives BRIDGE_KEY.
+const ACTION_FIELDS = Object.freeze({
+  listBlogs: [],
+  getBlog: [],
+  getBlogUserInfo: [],
+  listPosts: ['maxResults', 'statuses', 'pageToken'],
+  listAllPosts: ['maxResults', 'statuses', 'maxPages'],
+  getPost: ['postId'],
+  searchPosts: ['query'],
+  getPostByPath: ['path'],
+  createDraft: ['title', 'content', 'labels', 'customMetaData'],
+  editPost: ['postId', 'title', 'content', 'labels'],
+  publishPost: ['postId', 'publishDate', 'confirmPublish'],
+  revertToDraft: ['postId', 'confirmRevert'],
+  deletePost: ['postId', 'confirmDelete'],
+  listPages: ['maxResults', 'statuses', 'pageToken'],
+  listAllPages: ['maxResults', 'statuses', 'maxPages'],
+  getPage: ['pageId'],
+  createPageDraft: ['title', 'content'],
+  editPage: ['pageId', 'title', 'content'],
+  publishPage: ['pageId', 'confirmPublish'],
+  revertPage: ['pageId', 'confirmRevert'],
+  deletePage: ['pageId', 'confirmDelete'],
+  listComments: ['postId', 'maxResults', 'pageToken'],
+  getComment: ['postId', 'commentId'],
+  deleteComment: ['postId', 'commentId', 'confirmDelete'],
+  getPageViews: ['range']
+});
+
+const CONFIRMATION_RULES = Object.freeze({
+  publishPost: 'confirmPublish',
+  publishPage: 'confirmPublish',
+  revertToDraft: 'confirmRevert',
+  revertPage: 'confirmRevert',
+  deletePost: 'confirmDelete',
+  deletePage: 'confirmDelete',
+  deleteComment: 'confirmDelete'
+});
 
 function response(statusCode, body, origin) {
   const headers = {
@@ -15,6 +54,49 @@ function response(statusCode, body, origin) {
     headers['Vary'] = 'Origin';
   }
   return { statusCode, headers, body: JSON.stringify(body) };
+}
+
+function safePayload(action, request) {
+  const allowed = ACTION_FIELDS[action];
+  if (!allowed) throw new Error('Unsupported Blogger action.');
+
+  const payload = { action };
+  for (const field of allowed) {
+    if (Object.prototype.hasOwnProperty.call(request, field)) {
+      payload[field] = request[field];
+    }
+  }
+
+  const confirmation = CONFIRMATION_RULES[action];
+  if (confirmation && payload[confirmation] !== true) {
+    throw new Error('This operation requires explicit confirmation.');
+  }
+
+  if (action === 'listPosts' || action === 'listPages' ||
+      action === 'listAllPosts' || action === 'listAllPages' ||
+      action === 'listComments') {
+    if (payload.maxResults !== undefined) {
+      payload.maxResults = Math.min(Math.max(Number(payload.maxResults) || 20, 1), 100);
+    }
+  }
+  if (action === 'listAllPosts' || action === 'listAllPages') {
+    if (payload.maxPages !== undefined) {
+      payload.maxPages = Math.min(Math.max(Number(payload.maxPages) || 1, 1), 10);
+    }
+  }
+  if (payload.statuses !== undefined && !Array.isArray(payload.statuses)) {
+    throw new Error('statuses must be an array.');
+  }
+  if (payload.labels !== undefined && !Array.isArray(payload.labels)) {
+    throw new Error('labels must be an array.');
+  }
+  if (['createDraft', 'createPageDraft'].includes(action)) {
+    if (typeof payload.title !== 'string' || !payload.title.trim() ||
+        typeof payload.content !== 'string' || !payload.content.trim()) {
+      throw new Error('A title and content are required.');
+    }
+  }
+  return payload;
 }
 
 exports.handler = async (event) => {
@@ -63,18 +145,12 @@ exports.handler = async (event) => {
   try {
     const request = JSON.parse(event.body);
     if (!request || typeof request !== 'object' || Array.isArray(request) ||
-        !READ_ACTIONS.has(request.action)) {
-      return response(400, { ok: false, error: 'Unsupported action. Only read operations are enabled.' }, appOrigin);
+        typeof request.action !== 'string') {
+      return response(400, { ok: false, error: 'Invalid Blogger request.' }, appOrigin);
     }
 
-    const payload = { action: request.action, bridgeKey };
-    if (request.action === 'listPosts' || request.action === 'listPages') {
-      if (request.maxResults !== undefined) {
-        payload.maxResults = Math.min(Math.max(Number(request.maxResults) || 20, 1), 100);
-      }
-      if (Array.isArray(request.statuses)) payload.statuses = request.statuses;
-      if (typeof request.pageToken === 'string') payload.pageToken = request.pageToken;
-    }
+    const payload = safePayload(request.action, request);
+    payload.bridgeKey = bridgeKey;
 
     const upstream = await fetch(appsScriptUrl, {
       method: 'POST',
@@ -99,7 +175,12 @@ exports.handler = async (event) => {
     }
 
     return response(upstream.ok && data.ok ? 200 : 502, data, appOrigin);
-  } catch {
-    return response(500, { ok: false, error: 'Secure Blogger request failed.' }, appOrigin);
+  } catch (error) {
+    const message = String(error && error.message || error);
+    const clientError = /Unsupported Blogger action|requires explicit confirmation|must be an array|title and content/i.test(message);
+    return response(clientError ? 400 : 500, {
+      ok: false,
+      error: clientError ? message : 'Secure Blogger request failed.'
+    }, appOrigin);
   }
 };
