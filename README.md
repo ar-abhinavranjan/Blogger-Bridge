@@ -46,8 +46,8 @@ Copy the output directly into Netlify's `SESSION_SECRET` environment variable. N
 
 - The browser never receives `BRIDGE_KEY`, OAuth client secrets, Blogger access tokens, or refresh tokens.
 - Session cookies are signed server-side, expire after seven days, and are checked on every Blogger API request.
-- The Blogger function enforces the configured same-origin policy and accepts only allowlisted read actions: `getBlog`, `listPosts`, and `listPages`.
-- Publishing, deleting, comments, analytics, and shell commands remain disabled.
+- The Blogger function enforces the configured same-origin policy and accepts an explicit allowlist of Blogger actions for blog details, paginated posts and pages, draft creation, editing, publishing, reverting, deletion, comments, and page-view statistics.
+- Publishing, reverting, and deletion require explicit confirmation flags in the server request and a browser confirmation step.\n- The terminal is a controlled command interface, not an operating-system shell.\n- Comments are loaded per post because the Blogger API comment-list endpoint requires a post ID.\n- Analytics uses the Blogger pageviews endpoint and may return no data when the Blogger API has no statistics available.
 - Destructive operations must require explicit confirmation if introduced in a future release.
 - Use HTTPS in production; the Secure cookie will not be sent over plain HTTP.
 
