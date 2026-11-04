@@ -36,3 +36,44 @@
   .top-right { gap: 8px; }
   #google-signin { width: 200px; min-width: 0; max-width: 200px; }
 }
+
+/* Google-first authentication gate */
+[hidden] { display: none !important; }
+.login-gate {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px 18px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(124,140,255,.13), transparent 48%),
+    radial-gradient(ellipse at 100% 100%, rgba(255,94,170,.08), transparent 42%),
+    var(--bg);
+}
+.login-card {
+  width: min(100%, 440px);
+  padding: 34px;
+  background: rgba(16,20,31,.94);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 28px 90px rgba(0,0,0,.42);
+}
+.login-brand { display:flex; gap:12px; align-items:center; color:var(--text); text-decoration:none; margin-bottom:48px; }
+.login-brand b { display:block; font-size:14px; }
+.login-brand small { display:block; color:var(--muted); font:10px 'DM Mono',monospace; letter-spacing:1px; margin-top:4px; }
+.login-card h1 { font-size:32px; margin:0 0 10px; }
+.login-copy { color:var(--muted); line-height:1.65; margin:0 0 26px; font-size:13px; }
+.login-google { min-height:48px; display:flex; align-items:center; justify-content:flex-start; }
+.login-google iframe { max-width:100%; }
+.login-message { min-height:34px; color:var(--muted); font-size:11px; line-height:1.5; margin:14px 0 22px; }
+.login-message.error { color:#ff8b9a; }
+.login-foot { border-top:1px solid var(--line); padding-top:17px; color:var(--muted); font:10px 'DM Mono',monospace; display:flex; align-items:center; gap:9px; }
+.secure-dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 12px rgba(100,214,160,.5); }
+.signed-in-user { color:var(--muted); font-size:11px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sign-out { background:transparent; color:var(--text); border:1px solid var(--line); border-radius:7px; padding:7px 10px; font:11px 'DM Sans',sans-serif; cursor:pointer; }
+.sign-out:hover { border-color:var(--pink); color:var(--pink); }
+@media(max-width:620px) {
+  .login-card { padding:25px 21px; }
+  .login-brand { margin-bottom:38px; }
+  .login-card h1 { font-size:28px; }
+  .signed-in-user { max-width:100px; }
+}

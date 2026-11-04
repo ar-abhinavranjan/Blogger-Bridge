@@ -1,146 +1,105 @@
-const ALLOWED_EMAIL = "proabhinavranjanparoo@gmail.com";
-const READ_ACTIONS = new Set(["getBlog", "listPosts", "listPages"]);
+'use strict';
+
+const { getSession } = require('./lib/session');
+const READ_ACTIONS = new Set(['getBlog', 'listPosts', 'listPages']);
 
 function response(statusCode, body, origin) {
-  return {
-    statusCode,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-      ...(origin ? {
-        "Access-Control-Allow-Origin": origin,
-        "Vary": "Origin"
-      } : {})
-    },
-    body: JSON.stringify(body)
+  const headers = {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff'
   };
+  if (origin) {
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers['Access-Control-Allow-Credentials'] = 'true';
+    headers['Vary'] = 'Origin';
+  }
+  return { statusCode, headers, body: JSON.stringify(body) };
 }
 
 exports.handler = async (event) => {
   const appOrigin = process.env.APP_ORIGIN;
-  const origin = event.headers.origin || event.headers.Origin || "";
+  const headers = event.headers || {};
+  const origin = headers.origin || headers.Origin || '';
 
-  if (!appOrigin || (origin && origin !== appOrigin) || (!origin && event.httpMethod !== "GET")) {
-    return response(403, { ok: false, error: "Origin not allowed." });
+  if (!appOrigin || (origin && origin !== appOrigin) ||
+      (event.httpMethod !== 'OPTIONS' && origin !== appOrigin)) {
+    return response(403, { ok: false, error: 'Origin not allowed.' });
   }
 
-  if (event.httpMethod === "GET") {
-    const googleClientId = process.env.GOOGLE_CLIENT_ID;
-    if (!googleClientId) {
-      return response(503, { ok: false, error: "Google sign-in is not configured." }, appOrigin);
-    }
-    return response(200, { ok: true, googleClientId, functionVersion: "bridge-key-diagnostic", allowlistConfigured: true }, appOrigin);
-  }
-
-  if (event.httpMethod === "OPTIONS") {
+  if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 204,
       headers: {
-        "Access-Control-Allow-Origin": appOrigin,
-        "Access-Control-Allow-Headers": "Authorization, Content-Type",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Vary": "Origin"
+        'Access-Control-Allow-Origin': appOrigin,
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Vary': 'Origin'
       },
-      body: ""
+      body: ''
     };
   }
 
-  if (event.httpMethod !== "POST") {
-    return response(405, { ok: false, error: "Method not allowed." }, appOrigin);
+  if (event.httpMethod !== 'POST') {
+    return response(405, { ok: false, error: 'Method not allowed.' }, appOrigin);
+  }
+
+  const session = getSession(event);
+  if (!session) {
+    return response(401, { ok: false, error: 'Your session is missing or expired. Sign in again.' }, appOrigin);
   }
 
   const appsScriptUrl = process.env.APPS_SCRIPT_URL;
   const bridgeKey = process.env.BRIDGE_KEY;
-  const googleClientId = process.env.GOOGLE_CLIENT_ID;
+  if (!appsScriptUrl || !bridgeKey) {
+    return response(503, { ok: false, error: 'Blogger backend environment is not configured.' }, appOrigin);
+  }
 
-  if (!appsScriptUrl || !bridgeKey || !googleClientId) {
-    return response(503, { ok: false, error: "Backend environment is not configured." }, appOrigin);
+  if (!event.body || event.body.length > 20000) {
+    return response(400, { ok: false, error: 'Invalid or oversized request.' }, appOrigin);
   }
 
   try {
-    const authorization = event.headers.authorization || event.headers.Authorization || "";
-    const match = authorization.match(/^Bearer\s+(.+)$/i);
-    if (!match) {
-      return response(401, { ok: false, error: "Google sign-in is required." }, appOrigin);
-    }
-
-    const tokenInfoResponse = await fetch(
-      "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(match[1])
-    );
-    if (!tokenInfoResponse.ok) {
-      return response(401, { ok: false, error: "Google identity token is invalid or expired." }, appOrigin);
-    }
-
-    const identity = await tokenInfoResponse.json();
-
-    if (String(identity.aud || "") !== String(googleClientId || "")) {
-      return response(401, {
-        ok: false,
-        error: "OAuth client mismatch: Netlify GOOGLE_CLIENT_ID does not match the sign-in token audience."
-      }, appOrigin);
-    }
-
-    if (identity.email_verified !== "true" && identity.email_verified !== true) {
-      return response(403, {
-        ok: false,
-        error: "Google email is not verified. Verify the Google account and sign in again."
-      }, appOrigin);
-    }
-
-    // Normalize only invisible/control characters. Preserve email punctuation such as @ and .
-    const normalizeEmail = (value) => String(value || "")
-      .normalize("NFKC")
-      .replace(/[\u0000-\u0020\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/g, "")
-      .toLowerCase();
-
-    const signedInEmail = normalizeEmail(identity.email);
-    const allowedEmail = normalizeEmail(ALLOWED_EMAIL);
-
-    if (signedInEmail !== allowedEmail) {
-      return response(403, {
-        ok: false,
-        error: "Signed-in account does not match the configured Blogger Bridge account. Check the allowlist and sign-in account."
-      }, appOrigin);
-    }
-
-    if (!event.body || event.body.length > 20000) {
-      return response(400, { ok: false, error: "Invalid or oversized request." }, appOrigin);
-    }
-
     const request = JSON.parse(event.body);
-    if (!request || typeof request !== "object" || Array.isArray(request) ||
+    if (!request || typeof request !== 'object' || Array.isArray(request) ||
         !READ_ACTIONS.has(request.action)) {
-      return response(400, { ok: false, error: "Unsupported action. Only read operations are enabled." }, appOrigin);
+      return response(400, { ok: false, error: 'Unsupported action. Only read operations are enabled.' }, appOrigin);
     }
 
     const payload = { action: request.action, bridgeKey };
-    if (request.action === "listPosts" || request.action === "listPages") {
-      if (request.maxResults !== undefined) payload.maxResults = Math.min(Math.max(Number(request.maxResults) || 20, 1), 100);
+    if (request.action === 'listPosts' || request.action === 'listPages') {
+      if (request.maxResults !== undefined) {
+        payload.maxResults = Math.min(Math.max(Number(request.maxResults) || 20, 1), 100);
+      }
       if (Array.isArray(request.statuses)) payload.statuses = request.statuses;
-      if (typeof request.pageToken === "string") payload.pageToken = request.pageToken;
+      if (typeof request.pageToken === 'string') payload.pageToken = request.pageToken;
     }
 
     const upstream = await fetch(appsScriptUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      redirect: "follow"
+      redirect: 'follow'
     });
 
     const raw = await upstream.text();
     let data;
-    try { data = JSON.parse(raw); }
-    catch { return response(502, { ok: false, error: "Apps Script returned an unreadable response." }, appOrigin); }
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      return response(502, { ok: false, error: 'Apps Script returned an unreadable response.' }, appOrigin);
+    }
 
-    if (data && data.ok === false && String(data.error || "") === "Unauthorized.") {
+    if (data && data.ok === false && String(data.error || '') === 'Unauthorized.') {
       return response(502, {
         ok: false,
-        error: "Apps Script rejected BRIDGE_KEY. Netlify's BRIDGE_KEY does not exactly match Apps Script → Project Settings → Script Properties → BRIDGE_KEY. Set the same secret in both places, save, and redeploy. Do not paste the secret into chat."
+        error: 'Apps Script rejected BRIDGE_KEY. Check that Netlify BRIDGE_KEY exactly matches the Apps Script Script Property. Do not share the secret.'
       }, appOrigin);
     }
 
     return response(upstream.ok && data.ok ? 200 : 502, data, appOrigin);
-  } catch (error) {
-    return response(500, { ok: false, error: "Secure Blogger request failed." }, appOrigin);
+  } catch {
+    return response(500, { ok: false, error: 'Secure Blogger request failed.' }, appOrigin);
   }
 };

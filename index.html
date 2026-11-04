@@ -6,7 +6,18 @@
 <title>AR. Blogger Bridge</title><link rel="stylesheet" href="./assets/style.css">
 </head>
 <body>
-<div class="shell">
+<section class="login-gate" id="login-gate" aria-labelledby="login-title">
+ <div class="login-card">
+  <a class="login-brand" href="#" aria-label="AR. Blogger Bridge"><span class="brand-mark">AR.</span><span><b>AR. Blogger Bridge</b><small>BLOGGER CONTROL CENTER</small></span></a>
+  <p class="eyebrow">PRIVATE WORKSPACE</p>
+  <h1 id="login-title">Sign in to continue.</h1>
+  <p class="login-copy">Authenticate with your authorized Google account to securely access the Blogger management console.</p>
+  <div id="google-signin" class="login-google"></div>
+  <p id="login-message" class="login-message" role="status">Sign in is required before opening the dashboard.</p>
+  <div class="login-foot"><span class="secure-dot"></span> Protected Google authentication · Secure session</div>
+ </div>
+</section>
+<div class="shell" id="app-shell" hidden>
 <aside class="sidebar">
  <a class="brand" href="#"><span class="brand-mark">AR.</span><span><b>AR. Blogger Bridge</b><small>BLOGGER CONTROL CENTER</small></span></a>
  <div class="side-label">WORKSPACE</div>
@@ -19,7 +30,7 @@
  <div class="sidebar-bottom"><div class="connection"><i></i><span><b id="sidebar-connection">Sign-in required</b><small id="sidebar-detail">Google authorization pending</small></span></div><small class="version">AR. BLOGGER BRIDGE · 0.1.0</small></div>
 </aside>
 <main class="main">
- <header class="topbar"><div><span class="crumb">WORKSPACE /</span> <b id="view-name">Overview</b></div><div class="top-right"><span id="auth-status" class="mode">SIGN IN REQUIRED</span><div id="google-signin"></div><span class="avatar">AR</span></div></header>
+ <header class="topbar"><div><span class="crumb">WORKSPACE /</span> <b id="view-name">Overview</b></div><div class="top-right"><span id="auth-status" class="mode">SIGN IN REQUIRED</span><span id="signed-in-user" class="signed-in-user"></span><button type="button" id="sign-out" class="sign-out">Sign out ↗</button><span class="avatar">AR</span></div></header>
  <section class="page active" id="overview">
   <div class="welcome"><div><p class="eyebrow">BLOGGER MANAGEMENT CONSOLE</p><h1>Good to see you, AR.</h1><p class="muted">Your command center for Blogger operations.</p></div><button class="primary" data-goto="terminal">Open terminal ↗</button></div>
   <div class="notice" id="connection-notice"><span>ⓘ</span><div><b>Sign in to connect Blogger</b><p>Use the authorized Google account to load live blog information, posts and pages. This first integration is read-only.</p></div></div>
