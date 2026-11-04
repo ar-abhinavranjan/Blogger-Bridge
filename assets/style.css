@@ -7,36 +7,6 @@
 .data-item p{font-size:11px;margin:0 0 8px}
 .data-item a{color:var(--pink);font-size:11px;text-decoration:none}
 .data-item a:hover{text-decoration:underline}
-/* Keep only the host page transparent; Google's iframe controls its own button artwork. */
-#google-signin {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  width: 200px;
-  min-width: 200px;
-  height: 40px;
-  min-height: 40px;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background: transparent;
-  border: 0;
-  border-radius: 24px;
-  box-shadow: none;
-  line-height: 0;
-}
-#google-signin iframe {
-  display: block;
-  width: 200px !important;
-  max-width: 200px;
-  height: 40px !important;
-  border: 0 !important;
-}
-@media(max-width:620px) {
-  .top-right { gap: 8px; }
-  #google-signin { width: 200px; min-width: 0; max-width: 200px; }
-}
-
 /* Google-first authentication gate */
 [hidden] { display: none !important; }
 .login-gate {
@@ -62,8 +32,6 @@
 .login-brand small { display:block; color:var(--muted); font:10px 'DM Mono',monospace; letter-spacing:1px; margin-top:4px; }
 .login-card h1 { font-size:32px; margin:0 0 10px; }
 .login-copy { color:var(--muted); line-height:1.65; margin:0 0 26px; font-size:13px; }
-.login-google { min-height:48px; display:flex; align-items:center; justify-content:flex-start; }
-.login-google iframe { max-width:100%; }
 .login-message { min-height:34px; color:var(--muted); font-size:11px; line-height:1.5; margin:14px 0 22px; }
 .login-message.error { color:#ff8b9a; }
 .login-foot { border-top:1px solid var(--line); padding-top:17px; color:var(--muted); font:10px 'DM Mono',monospace; display:flex; align-items:center; gap:9px; }
@@ -78,37 +46,3 @@
   .signed-in-user { max-width:100px; }
 }
 
-/* Full-width, centered Google sign-in button — overrides the legacy 200px header control. */
-.login-card .login-google,
-#google-signin {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-width: 0;
-  max-width: 360px;
-  min-height: 48px;
-  height: 48px;
-  margin: 0 auto;
-  padding: 0;
-  overflow: visible;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  box-shadow: none;
-  line-height: normal;
-}
-#google-signin iframe {
-  display: block;
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-  height: 48px !important;
-  border: 0 !important;
-  margin: 0 auto !important;
-}
-@media(max-width:480px) {
-  .login-card { width:100%; }
-  .login-card .login-google,
-  #google-signin { max-width:100%; }
-}
