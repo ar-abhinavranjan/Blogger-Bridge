@@ -77,3 +77,38 @@
   .login-card h1 { font-size:28px; }
   .signed-in-user { max-width:100px; }
 }
+
+/* Full-width, centered Google sign-in button — overrides the legacy 200px header control. */
+.login-card .login-google,
+#google-signin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  max-width: 360px;
+  min-height: 48px;
+  height: 48px;
+  margin: 0 auto;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  line-height: normal;
+}
+#google-signin iframe {
+  display: block;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: 48px !important;
+  border: 0 !important;
+  margin: 0 auto !important;
+}
+@media(max-width:480px) {
+  .login-card { width:100%; }
+  .login-card .login-google,
+  #google-signin { max-width:100%; }
+}
